@@ -301,11 +301,20 @@ const DPR = 2; // retina
 const PX_PER_CM = 37.795 * DPR;
 const A4W = 21.0 * PX_PER_CM;
 const A4H = 29.7 * PX_PER_CM;
-const FONT_FAMILY = "'Noto Serif TC', serif";
+const FONT_FAMILY = "'Noto Serif TC', 'Noto Serif CJK TC', '新細明體', 'PMingLiU', serif";
 let fontReady = false;
 
-/* preload font */
-document.fonts.ready.then(() => { fontReady = true; });
+/* preload & warm-up font so Canvas can use it */
+async function ensureFont() {
+  await document.fonts.ready;
+  // Force browser to load the font into canvas context
+  const tmp = document.createElement('canvas');
+  const ctx = tmp.getContext('2d');
+  ctx.font = `900 40px 'Noto Serif TC', serif`;
+  ctx.fillText('牌', 0, 40);
+  fontReady = true;
+}
+ensureFont();
 
 /* ─────────────── Font size logic ─────────────── */
 function computeFontSize(label, cardWpx, cardHpx) {
@@ -407,7 +416,8 @@ function drawPage(canvas, pair, cwPx, chPx) {
 /* ─────────────── Generate Preview ─────────────── */
 let pageCanvases = [];
 
-function generatePreview() {
+async function generatePreview() {
+  if (!fontReady) { setStatus('字型載入中，請稍候…'); await ensureFont(); }
   const raw = document.getElementById('inputText').value.trim();
   if (!raw) { setStatus('請先輸入文字！', 'err'); return; }
 
