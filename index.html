@@ -180,7 +180,7 @@ canvas.page-canvas { display:block;max-width:100%;border-radius:4px; }
   <!-- ▌左欄：文字輸入 + 批次產生 -->
   <aside class="col-left">
     <div>
-      <div class="section-title">卡片文字</div>
+      <div class="section-title"><span style="background:#2eb87a;color:white;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;margin-right:6px;flex-shrink:0;">1</span>卡片文字</div>
       <label for="inputText">輸入要印在立牌上的文字</label>
       <textarea id="inputText" rows="9" placeholder="請在此輸入文字…"></textarea>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
@@ -196,7 +196,7 @@ canvas.page-canvas { display:block;max-width:100%;border-radius:4px; }
     </div>
 
     <div class="batch-box">
-      <div class="section-title" style="color:#2d8abf;">🔢 批次號碼產生</div>
+      <div class="section-title" style="color:#2d8abf;"><span style="background:#3a9fd6;color:white;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;margin-right:6px;flex-shrink:0;">2</span>產生批次號碼 <span style="font-size:12px;font-weight:400;color:#718096;letter-spacing:0;margin-left:4px;">（可跳過）</span></div>
       <div class="batch-grid">
         <div><label style="font-size:13px;">前綴（可空白）</label>
           <input type="text" id="batchPrefix" placeholder="例如：第"></div>
@@ -219,7 +219,7 @@ canvas.page-canvas { display:block;max-width:100%;border-radius:4px; }
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <button class="btn btn-primary" style="font-size:13px;padding:9px;letter-spacing:0px;" onclick="batchFill('replace')">✏️ 填入號碼</button>
+        <button class="btn" style="font-size:13px;padding:9px;letter-spacing:0px;background:linear-gradient(135deg,#f6a623,#e8920f);color:white;box-shadow:0 3px 8px rgba(246,166,35,0.35);" onclick="batchFill('replace')">✏️ 填入號碼</button>
         <button class="btn" style="font-size:13px;padding:9px;letter-spacing:0px;background:linear-gradient(135deg,#718096,#4a5568);color:white;" onclick="batchFill('append')">➕ 加在後面</button>
       </div>
       <div style="margin-top:8px;font-size:12px;color:#4a7a9b;background:#e8f4fd;border-radius:6px;padding:7px 10px;line-height:1.7;">
@@ -231,7 +231,7 @@ canvas.page-canvas { display:block;max-width:100%;border-radius:4px; }
   <!-- ▌右上：版面設定 + 按鈕 -->
   <section class="col-right-top">
     <div>
-      <div class="section-title">版面設定</div>
+      <div class="section-title"><span style="background:#2eb87a;color:white;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;margin-right:6px;flex-shrink:0;">3</span>版面設定</div>
       <div class="settings-grid">
         <div>
           <label for="cardWidth">卡片長度（cm）</label>
@@ -316,54 +316,62 @@ async function ensureFont() {
 // Start loading immediately
 ensureFont();
 
+// 計算實際像素寬度（掃描 canvas 像素）
+function getActualWidth(text, size, cardWpx) {
+  const oc = document.createElement('canvas');
+  const startX = 20;  // 文字從 x=20 開始畫，留足夠左邊距
+  oc.width = Math.ceil(cardWpx) + 300;
+  oc.height = size * 2 + 20;
+  const octx = oc.getContext('2d');
+  octx.font = CANVAS_FONT(size);
+  octx.fillStyle = '#000';
+  octx.textBaseline = 'top';
+  octx.fillText(text, startX, 5);
+  const imgData = octx.getImageData(0, 0, oc.width, oc.height).data;
+  let rightmost = 0;
+  for (let x = oc.width - 1; x >= 0; x--) {
+    for (let y = 0; y < oc.height; y++) {
+      if (imgData[(y * oc.width + x) * 4 + 3] > 10) { rightmost = x; break; }
+    }
+    if (rightmost > 0) break;
+  }
+  // 實際寬度 = 最右像素 - 起始x，再加 10px 安全緩衝
+  const actualW = rightmost > startX ? (rightmost - startX + 10) : octx.measureText(text).width;
+  return actualW;
+}
+
+// 依模式設定邊距比例
+function getMarginRatio(mode) {
+  return {
+    auto:   { w: 0.60, h: 0.52 },  // 自動：留最多空白，視覺最舒適
+    small:  { w: 0.50, h: 0.44 },  // 小：字最小
+    medium: { w: 0.65, h: 0.57 },  // 中
+    large:  { w: 0.72, h: 0.63 },  // 大
+    xl:     { w: 0.78, h: 0.70 },  // 特大：最大但仍不超框
+  }[mode] || { w: 0.60, h: 0.52 };
+}
+
 function computeFontSize(label, cardWpx, cardHpx) {
   const mode = document.getElementById('fontSizeMode').value;
-  const fixed = { xl: 320, large: 250, medium: 185, small: 135 };
-  if (fixed[mode]) return fixed[mode];
-
   const lines = label.split('|');
   const halfH = cardHpx / 2;
+  const { w: wRatio, h: hRatio } = getMarginRatio(mode);
+  const maxW = cardWpx * wRatio;
+  const maxH = halfH * hRatio;
 
-  // 用實際渲染的 canvas 取得真正的像素寬度
-  function getActualWidth(text, size) {
-    const oc = document.createElement('canvas');
-    oc.width = Math.ceil(cardWpx) + 200;
-    oc.height = size * 2 + 20;
-    const octx = oc.getContext('2d');
-    octx.font = CANVAS_FONT(size);
-    octx.fillStyle = '#000';
-    octx.textBaseline = 'top';
-    octx.fillText(text, 10, 5);
-    // 掃描實際有墨水的最右像素
-    const imgData = octx.getImageData(0, 0, oc.width, oc.height).data;
-    let rightmost = 0;
-    for (let x = oc.width - 1; x >= 0; x--) {
-      let found = false;
-      for (let y = 0; y < oc.height; y++) {
-        if (imgData[(y * oc.width + x) * 4 + 3] > 10) { found = true; break; }
-      }
-      if (found) { rightmost = x; break; }
-    }
-    return rightmost > 0 ? rightmost - 8 : octx.measureText(text).width;
-  }
+  // 起始字體大小依模式不同（避免從 280 開始掃太慢）
+  const startSize = { auto: 240, small: 160, medium: 220, large: 260, xl: 290 }[mode] || 240;
 
-  // 允許的最大寬度和高度（各留 25% 邊距，正反兩面都夠）
-  const maxW = cardWpx * 0.68;
-  const maxH = halfH * 0.60;
-
-  for (let s = 280; s >= 36; s -= 4) {
-    // 先用 measureText 粗篩（快）
-    const tmpCtx = document.createElement('canvas').getContext('2d');
-    tmpCtx.font = CANVAS_FONT(s);
-    const roughW = Math.max(...lines.map(l => tmpCtx.measureText(l).width));
+  for (let s = startSize; s >= 32; s -= 4) {
+    // 快速高度篩選
     const measuredH = lines.length * s * 1.35;
-    if (roughW > maxW * 1.15 || measuredH > maxH) continue;  // 明顯太大，跳過
+    if (measuredH > maxH) continue;
 
-    // 精確驗證實際像素寬度
-    const actualW = Math.max(...lines.map(l => getActualWidth(l, s)));
-    if (actualW <= maxW && measuredH <= maxH) return s;
+    // 精確寬度驗證（實際像素）
+    const actualW = Math.max(...lines.map(l => getActualWidth(l, s, cardWpx)));
+    if (actualW <= maxW) return s;
   }
-  return 36;
+  return 32;
 }
 
 function drawCard(ctx, label, x, y, cw, ch, fontSize) {
