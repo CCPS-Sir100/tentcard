@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>帳篷卡片產生器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1410;
+    --paper: #faf8f4;
+    --warm: #f0ebe2;
+    --accent: #8b3a2a;
+    --accent-light: #c4614e;
+    --border: #d4c9b8;
+    --shadow: rgba(26,20,16,0.12);
+    --radius: 6px;
+  }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-mark {
+    width: 40px; height: 40px;
+    border: 2px solid var(--accent-light);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 20px; color: var(--accent-light);
+  }
+  header h1 {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 22px; font-weight: 900;
+    letter-spacing: 4px;
+  }
+  header p {
+    font-size: 12px; opacity: 0.5; margin-top: 2px; letter-spacing: 1px;
+  }
+
+  /* ── Layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* ── Left Panel ── */
+  .panel {
+    background: var(--warm);
+    border-right: 1px solid var(--border);
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #5a4e44;
+    margin-bottom: 5px;
+  }
+  textarea, select, input[type=number] {
+    width: 100%;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    color: var(--ink);
+    transition: border-color .2s;
+    outline: none;
+  }
+  textarea:focus, select:focus, input:focus {
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; line-height: 1.7; }
+
+  .hint {
+    font-size: 11px;
+    color: #8a7d72;
+    margin-top: 5px;
+    line-height: 1.6;
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .btn {
+    display: block; width: 100%;
+    padding: 13px;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 15px; font-weight: 700;
+    letter-spacing: 2px;
+    border: none; border-radius: var(--radius);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--accent-light); }
+  .btn-secondary {
+    background: var(--ink);
+    color: white;
+    margin-top: 8px;
+  }
+  .btn-secondary:hover { opacity: .85; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .status {
+    font-size: 12px;
+    text-align: center;
+    color: #8a7d72;
+    min-height: 18px;
+  }
+  .status.ok { color: #3a7a3a; }
+  .status.err { color: var(--accent); }
+
+  /* ── Right: Preview ── */
+  .preview-area {
+    background: #e8e4dc;
+    padding: 32px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .preview-empty {
+    margin: auto;
+    text-align: center;
+    color: #a09080;
+  }
+  .preview-empty .icon {
+    font-size: 56px;
+    margin-bottom: 12px;
+    opacity: .4;
+  }
+  .preview-empty p {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .page-wrap {
+    position: relative;
+    background: white;
+    box-shadow: 0 4px 24px var(--shadow);
+  }
+  .page-label {
+    position: absolute;
+    top: -22px; left: 0;
+    font-size: 11px;
+    color: #8a7d72;
+    letter-spacing: 1px;
+  }
+  canvas.page-canvas {
+    display: block;
+    max-width: 100%;
+  }
+
+  .preview-info {
+    font-size: 12px;
+    color: #7a6e64;
+    letter-spacing: 1px;
+    align-self: flex-start;
+  }
+
+  /* ── Loading overlay ── */
+  #loadingOverlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(26,20,16,.5);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    color: white; font-size: 15px; letter-spacing: 2px;
+  }
+  #loadingOverlay.show { display: flex; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 768px) {
+    .main { grid-template-columns: 1fr; }
+    .preview-area { padding: 16px; }
+    header { padding: 16px 20px; }
+    .panel { padding: 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div id="loadingMsg">正在產生 PDF…</div>
+</div>
+
+<header>
+  <div class="logo-mark">牌</div>
+  <div>
+    <h1>帳篷卡片產生器</h1>
+    <p>TENT CARD GENERATOR</p>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Left Panel -->
+  <aside class="panel">
+
+    <div>
+      <div class="section-title">卡片文字</div>
+      <label for="inputText">每行輸入一張卡片的文字</label>
+      <textarea id="inputText" rows="10" placeholder="第1試場
+第2試場
+陳國祥處長
+服務台
+收發試題、答案卡|01～16試場
+簽到處"></textarea>
+      <p class="hint">✦ 每行 = 一張卡片<br>✦ 用 <strong>|</strong> 換行，例如：收發試題|01～16試場</p>
+    </div>
+
+    <div>
+      <div class="section-title">設定</div>
+      <div class="settings-grid">
+        <div>
+          <label for="cardWidth">卡片長度 (cm)</label>
+          <input type="number" id="cardWidth" value="17.4" min="10" max="21" step="0.1">
+        </div>
+        <div>
+          <label for="cardHeight">卡片寬度 (cm)</label>
+          <input type="number" id="cardHeight" value="13" min="8" max="14.8" step="0.5">
+        </div>
+        <div style="grid-column:span 2">
+          <label for="fontSizeMode">字體大小</label>
+          <select id="fontSizeMode">
+            <option value="auto">自動調整</option>
+            <option value="xl">特大</option>
+            <option value="large">大</option>
+            <option value="medium">中</option>
+            <option value="small">小</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <button class="btn btn-primary" onclick="generatePreview()">預覽卡片</button>
+      <button class="btn btn-secondary" id="dlBtn" onclick="downloadPDF()" disabled>⬇ 下載 PDF</button>
+      <p class="status" id="status"></p>
+    </div>
+
+  </aside>
+
+  <!-- Right Preview -->
+  <main class="preview-area" id="previewArea">
+    <div class="preview-empty" id="emptyMsg">
+      <div class="icon">🗂</div>
+      <p>在左側輸入卡片文字<br>點「預覽卡片」查看效果<br>確認後下載 PDF 列印</p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+/* ─────────────── Constants ─────────────── */
+const DPR = 2; // retina
+const PX_PER_CM = 37.795 * DPR;
+const A4W = 21.0 * PX_PER_CM;
+const A4H = 29.7 * PX_PER_CM;
+const FONT_FAMILY = "'Noto Serif TC', serif";
+let fontReady = false;
+
+/* preload font */
+document.fonts.ready.then(() => { fontReady = true; });
+
+/* ─────────────── Font size logic ─────────────── */
+function computeFontSize(label, cardWpx, cardHpx) {
+  const mode = document.getElementById('fontSizeMode').value;
+  const halfH = cardHpx / 2;
+  const lines = label.split('|');
+  const maxCharsPerLine = Math.max(...lines.map(l => l.length));
+  const totalLines = lines.length;
+
+  // Fixed sizes
+  const fixed = { xl: 340, large: 260, medium: 190, small: 140 };
+  if (fixed[mode]) return fixed[mode];
+
+  // Auto: fit by character count + lines
+  let size = 300;
+  const tmp = document.createElement('canvas');
+  const ctx = tmp.getContext('2d');
+  for (let s = 300; s >= 60; s -= 6) {
+    ctx.font = `900 ${s}px ${FONT_FAMILY}`;
+    const maxW = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const totalH = totalLines * s * 1.3;
+    if (maxW <= cardWpx * 0.84 && totalH <= halfH * 0.72) {
+      size = s;
+      break;
+    }
+  }
+  return size;
+}
+
+/* ─────────────── Draw one card ─────────────── */
+function drawCard(ctx, label, x, y, cw, ch, fontSize) {
+  const halfH = ch / 2;
+  const lines = label.split('|');
+
+  // border
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = DPR * 0.8;
+  ctx.strokeRect(x, y, cw, ch);
+
+  // center line
+  ctx.beginPath();
+  ctx.moveTo(x, y + halfH);
+  ctx.lineTo(x + cw, y + halfH);
+  ctx.stroke();
+
+  ctx.font = `900 ${fontSize}px ${FONT_FAMILY}`;
+  ctx.fillStyle = '#111';
+  ctx.textBaseline = 'middle';
+
+  const lineH = fontSize * 1.3;
+  const totalH = lines.length * lineH;
+
+  function drawLines(cx, cy, flip) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (flip) ctx.rotate(Math.PI);
+    lines.forEach((line, i) => {
+      const tw = ctx.measureText(line).width;
+      const yy = -totalH / 2 + i * lineH + lineH / 2;
+      ctx.fillText(line, -tw / 2, yy);
+    });
+    ctx.restore();
+  }
+
+  // bottom half: normal (自己看)
+  drawLines(x + cw / 2, y + halfH + halfH / 2, false);
+  // top half: flipped (對面看)
+  drawLines(x + cw / 2, y + halfH / 2, true);
+}
+
+/* ─────────────── Draw one A4 page ─────────────── */
+function drawPage(canvas, pair, cwPx, chPx) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const xOff = (A4W - cwPx) / 2;
+  const yOff = (A4H - chPx * 2) / 2;
+
+  pair.forEach((label, j) => {
+    const fs = computeFontSize(label, cwPx, chPx);
+    drawCard(ctx, label, xOff, yOff + j * chPx, cwPx, chPx, fs);
+  });
+
+  // dashed cut line
+  if (pair.length === 2) {
+    ctx.setLineDash([DPR * 8, DPR * 8]);
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = DPR * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(0, yOff + chPx);
+    ctx.lineTo(A4W, yOff + chPx);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+/* ─────────────── Generate Preview ─────────────── */
+let pageCanvases = [];
+
+function generatePreview() {
+  const raw = document.getElementById('inputText').value.trim();
+  if (!raw) { setStatus('請先輸入文字！', 'err'); return; }
+
+  const labels = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const cw = parseFloat(document.getElementById('cardWidth').value) || 17.4;
+  const ch = parseFloat(document.getElementById('cardHeight').value) || 13.0;
+  const cwPx = cw * PX_PER_CM;
+  const chPx = ch * PX_PER_CM;
+
+  const previewArea = document.getElementById('previewArea');
+  document.getElementById('emptyMsg')?.remove();
+  previewArea.innerHTML = '';
+  pageCanvases = [];
+
+  // info bar
+  const info = document.createElement('p');
+  info.className = 'preview-info';
+  info.textContent = `共 ${labels.length} 張卡片，${Math.ceil(labels.length / 2)} 頁 A4`;
+  previewArea.appendChild(info);
+
+  const SCALE = 480 / (A4W / DPR); // preview display scale
+
+  for (let i = 0; i < labels.length; i += 2) {
+    const pair = labels.slice(i, i + 2);
+    const wrap = document.createElement('div');
+    wrap.className = 'page-wrap';
+    wrap.style.width = ((A4W / DPR) * SCALE) + 'px';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'page-label';
+    lbl.textContent = `第 ${Math.floor(i / 2) + 1} 頁`;
+    wrap.appendChild(lbl);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = A4W;
+    canvas.height = A4H;
+    canvas.className = 'page-canvas';
+    canvas.style.width = ((A4W / DPR) * SCALE) + 'px';
+    canvas.style.height = ((A4H / DPR) * SCALE) + 'px';
+
+    drawPage(canvas, pair, cwPx, chPx);
+
+    wrap.appendChild(canvas);
+    previewArea.appendChild(wrap);
+    pageCanvases.push({ canvas, pair });
+  }
+
+  document.getElementById('dlBtn').disabled = false;
+  setStatus(`預覽完成，共 ${Math.ceil(labels.length / 2)} 頁`, 'ok');
+}
+
+/* ─────────────── Download PDF ─────────────── */
+async function downloadPDF() {
+  if (pageCanvases.length === 0) { setStatus('請先產生預覽！', 'err'); return; }
+
+  showLoading(true, '正在產生 PDF…');
+
+  // Use jsPDF via CDN (load on demand)
+  if (!window.jspdf) {
+    setStatus('載入 PDF 引擎中…');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  }
+
+  try {
+    const { jsPDF } = window.jspdf;
+    // A4 in mm
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    for (let i = 0; i < pageCanvases.length; i++) {
+      if (i > 0) pdf.addPage();
+      const { canvas } = pageCanvases[i];
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+      showLoading(true, `正在產生 PDF… (${i + 1}/${pageCanvases.length})`);
+      await sleep(10);
+    }
+
+    pdf.save('帳篷卡片.pdf');
+    setStatus('✓ PDF 已下載！', 'ok');
+  } catch (e) {
+    setStatus('PDF 產生失敗：' + e.message, 'err');
+  }
+
+  showLoading(false);
+}
+
+/* ─────────────── Helpers ─────────────── */
+function setStatus(msg, type = '') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+}
+function showLoading(show, msg = '') {
+  const el = document.getElementById('loadingOverlay');
+  el.classList.toggle('show', show);
+  if (msg) document.getElementById('loadingMsg').textContent = msg;
+}
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Auto preview on Enter in textarea (Ctrl+Enter)
+document.getElementById('inputText').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) generatePreview();
+});
+</script>
+</body>
+</html>
