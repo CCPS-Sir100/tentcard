@@ -316,10 +316,10 @@ async function ensureFont() {
 // Start loading immediately
 ensureFont();
 
-// 計算實際像素寬度（掃描 canvas 像素）
+// 計算實際像素寬度（掃描 canvas 像素，含安全緩衝）
 function getActualWidth(text, size, cardWpx) {
   const oc = document.createElement('canvas');
-  const startX = 20;  // 文字從 x=20 開始畫，留足夠左邊距
+  const startX = 20;
   oc.width = Math.ceil(cardWpx) + 300;
   oc.height = size * 2 + 20;
   const octx = oc.getContext('2d');
@@ -335,43 +335,42 @@ function getActualWidth(text, size, cardWpx) {
     }
     if (rightmost > 0) break;
   }
-  // 實際寬度 = 最右像素 - 起始x，再加 10px 安全緩衝
-  const actualW = rightmost > startX ? (rightmost - startX + 10) : octx.measureText(text).width;
-  return actualW;
-}
-
-// 依模式設定邊距比例
-function getMarginRatio(mode) {
-  return {
-    auto:   { w: 0.60, h: 0.52 },  // 自動：留最多空白，視覺最舒適
-    small:  { w: 0.50, h: 0.44 },  // 小：字最小
-    medium: { w: 0.65, h: 0.57 },  // 中
-    large:  { w: 0.72, h: 0.63 },  // 大
-    xl:     { w: 0.78, h: 0.70 },  // 特大：最大但仍不超框
-  }[mode] || { w: 0.60, h: 0.52 };
+  const pixelW = rightmost > startX ? (rightmost - startX + 16) : 0;
+  // 取像素掃描和 measureText 兩者中較大的值，加 8% 安全係數
+  const measureW = octx.measureText(text).width * 1.08;
+  return Math.max(pixelW, measureW);
 }
 
 function computeFontSize(label, cardWpx, cardHpx) {
   const mode = document.getElementById('fontSizeMode').value;
   const lines = label.split('|');
   const halfH = cardHpx / 2;
-  const { w: wRatio, h: hRatio } = getMarginRatio(mode);
-  const maxW = cardWpx * wRatio;
-  const maxH = halfH * hRatio;
 
-  // 起始字體大小依模式不同（避免從 280 開始掃太慢）
-  const startSize = { auto: 240, small: 160, medium: 220, large: 260, xl: 290 }[mode] || 240;
+  // 硬性邊界：上下左右各留 15%（絕對不能突破）
+  const hardMaxW = cardWpx * 0.85;
+  const hardMaxH = halfH  * 0.85;
 
-  for (let s = startSize; s >= 32; s -= 4) {
-    // 快速高度篩選
-    const measuredH = lines.length * s * 1.35;
-    if (measuredH > maxH) continue;
+  // 各模式目標比例（受硬性邊界約束）
+  const targetRatio = {
+    auto:   { w: 0.58, h: 0.56 },
+    small:  { w: 0.48, h: 0.46 },
+    medium: { w: 0.63, h: 0.61 },
+    large:  { w: 0.70, h: 0.68 },
+    xl:     { w: 0.76, h: 0.74 },
+  }[mode] || { w: 0.58, h: 0.56 };
 
-    // 精確寬度驗證（實際像素）
-    const actualW = Math.max(...lines.map(l => getActualWidth(l, s, cardWpx)));
-    if (actualW <= maxW) return s;
+  const maxW = Math.min(cardWpx * targetRatio.w, hardMaxW);
+  const maxH = Math.min(halfH  * targetRatio.h, hardMaxH);
+
+  const startSize = { auto: 240, small: 160, medium: 220, large: 255, xl: 275 }[mode] || 240;
+
+  for (let s = startSize; s >= 28; s -= 4) {
+    const totalH = lines.length * s * 1.35;
+    if (totalH > maxH) continue;
+    const maxLineW = Math.max(...lines.map(l => getActualWidth(l, s, cardWpx)));
+    if (maxLineW <= maxW) return s;
   }
-  return 32;
+  return 28;
 }
 
 function drawCard(ctx, label, x, y, cw, ch, fontSize) {
