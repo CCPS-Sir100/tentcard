@@ -443,8 +443,6 @@ function downloadPDF() {
     });
     return chain.then(function() {
       pdf.save('壓克力三角立牌.pdf');
-      clearTA();
-      resetPreview();
       setStatus('✅ PDF 已下載！','ok');
       showOverlay(false);
     });
