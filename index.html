@@ -585,7 +585,6 @@ function batchFill(mode) {
 function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
 
 // ── 在 Google 文件開啟 ──
-// 最可靠的無設定方案：在新分頁預覽，使用者複製貼入 Google 文件
 function openGoogleDocs() {
   const raw = document.getElementById('inputText').value.trim();
   if (!raw) { setStatus('請先輸入文字！','err'); return; }
@@ -600,111 +599,77 @@ function openGoogleDocs() {
   let tableHtml = '';
   labels.forEach((label, i) => {
     const lines = label.split('|');
-    const lineHtml = lines.map(l => `<p style="margin:0;line-height:1.3;">${l}</p>`).join('');
-    tableHtml += `
-<table style="width:${cardWpx}px;border-collapse:collapse;margin:0 auto 10px auto;table-layout:fixed;">
-  <tr>
-    <td style="height:${halfHpx}px;width:${cardWpx}px;border:2px solid #000;text-align:center;vertical-align:middle;font-family:標楷體,DFKai-SB,serif;font-size:${fsPt}pt;font-weight:bold;background:#f5f5f5;padding:8px 14px;box-sizing:border-box;">
-      <p style="margin:0 0 6px 0;font-size:9pt;color:#bbb;font-weight:normal;">↕ 此面朝向對方（對折後翻轉）</p>
-      ${lineHtml}
-    </td>
-  </tr>
-  <tr>
-    <td style="height:${halfHpx}px;width:${cardWpx}px;border:2px solid #000;text-align:center;vertical-align:middle;font-family:標楷體,DFKai-SB,serif;font-size:${fsPt}pt;font-weight:bold;padding:8px 14px;box-sizing:border-box;">
-      ${lineHtml}
-    </td>
-  </tr>
-</table>`;
+    const lineHtml = lines.map(l => '<p style="margin:0;line-height:1.3;">' + l + '</p>').join('');
+    tableHtml +=
+      '<table style="width:' + cardWpx + 'px;border-collapse:collapse;margin:0 auto 10px auto;table-layout:fixed;">' +
+        '<tr><td style="height:' + halfHpx + 'px;width:' + cardWpx + 'px;border:2px solid #000;text-align:center;vertical-align:middle;font-family:標楷體,DFKai-SB,serif;font-size:' + fsPt + 'pt;font-weight:bold;background:#f5f5f5;padding:8px 14px;box-sizing:border-box;">' +
+          '<p style="margin:0 0 6px 0;font-size:9pt;color:#bbb;font-weight:normal;">↕ 此面朝向對方（對折後翻轉）</p>' +
+          lineHtml +
+        '</td></tr>' +
+        '<tr><td style="height:' + halfHpx + 'px;width:' + cardWpx + 'px;border:2px solid #000;text-align:center;vertical-align:middle;font-family:標楷體,DFKai-SB,serif;font-size:' + fsPt + 'pt;font-weight:bold;padding:8px 14px;box-sizing:border-box;">' +
+          lineHtml +
+        '</td></tr>' +
+      '</table>';
     if (i % 2 === 1 && i < labels.length - 1) {
-      tableHtml += `<div style="page-break-after:always;height:0;"></div>`;
+      tableHtml += '<div style="page-break-after:always;height:0;"></div>';
     }
   });
 
-  // 建立一個帶有「一鍵複製」按鈕的頁面
-  const previewHtml = `<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8">
-<title>壓克力三角立牌 → 複製到 Google 文件</title>
-<style>
-  body { margin: 0; font-family: 'Microsoft JhengHei', sans-serif; background: #f5f5f5; }
-  .toolbar {
-    position: fixed; top: 0; left: 0; right: 0;
-    background: #1a73e8; color: white;
-    padding: 12px 20px; display: flex; align-items: center;
-    gap: 16px; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  .toolbar h2 { margin: 0; font-size: 15px; font-weight: 700; flex: 1; }
-  .copy-btn {
-    padding: 8px 18px; background: white; color: #1a73e8;
-    border: none; border-radius: 6px; font-size: 14px;
-    font-weight: 900; cursor: pointer; white-space: nowrap;
-  }
-  .gdocs-btn {
-    padding: 8px 18px; background: #34a853; color: white;
-    border: none; border-radius: 6px; font-size: 14px;
-    font-weight: 900; cursor: pointer; white-space: nowrap; text-decoration: none;
-  }
-  .steps {
-    background: #e8f4fd; border-left: 4px solid #1a73e8;
-    padding: 10px 16px; font-size: 13px; line-height: 1.9; color: #1a202c;
-  }
-  .content { margin-top: 60px; padding: 20px; }
-  #card-content { background: white; padding: 20px; display: inline-block; }
-  .copied { background: #34a853 !important; color: white !important; }
-</style>
-</head>
-<body>
-<div class="toolbar">
-  <h2>📋 壓克力三角立牌（共 ${labels.length} 張）</h2>
-  <button class="copy-btn" id="copyBtn" onclick="copyContent()">① 複製全部內容</button>
-  <a class="gdocs-btn" href="https://docs.google.com/document/create" target="_blank" onclick="setTimeout(showPasteHint,1500)">② 開啟 Google 文件</a>
-</div>
-<div class="content">
-  <div class="steps">
-    操作步驟：按「① 複製全部內容」→ 按「② 開啟 Google 文件」→ 在文件裡按 <strong>Ctrl+V</strong>（或 ⌘V）貼上 → 即可自由更換字體
-  </div>
-  <div style="margin-top:16px;" id="card-content">
-    <p style="font-family:sans-serif;font-size:10pt;color:#999;margin:0 0 12px 0;">
-      壓克力三角立牌｜屏東市中正國小教務主任洪啓元製作<br>
-      灰底上格＝朝對方面（對折翻轉）　白底下格＝朝自己
-    </p>
-    ${tableHtml}
-  </div>
-</div>
-<div id="pasteHint" style="display:none;position:fixed;bottom:20px;right:20px;background:#34a853;color:white;padding:14px 18px;border-radius:10px;font-size:14px;line-height:1.8;box-shadow:0 4px 16px rgba(0,0,0,0.3);">
-  📋 現在在 Google 文件裡<br>按 <strong>Ctrl+V</strong>（或 ⌘V）貼上！
-</div>
-<script>
-function copyContent() {
-  const el = document.getElementById('card-content');
-  const sel = window.getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  sel.removeAllRanges();
-  sel.addRange(range);
-  document.execCommand('copy');
-  sel.removeAllRanges();
-  const btn = document.getElementById('copyBtn');
-  btn.textContent = '✅ 已複製！';
-  btn.classList.add('copied');
-  setTimeout(() => { btn.textContent = '① 複製全部內容'; btn.classList.remove('copied'); }, 3000);
-}
-function showPasteHint() {
-  document.getElementById('pasteHint').style.display = 'block';
-  setTimeout(() => { document.getElementById('pasteHint').style.display = 'none'; }, 8000);
-}
-</script>
-</body>
-</html>`;
+  // 用 sc 變數避免 </script> 被瀏覽器誤判截斷
+  const sc = '<' + 'script>';
+  const scEnd = '</' + 'script>';
 
-  // 在新分頁開啟預覽頁面
-  const blob = new Blob([previewHtml], {type: 'text/html;charset=utf-8'});
+  const previewHtml = '<!DOCTYPE html>' +
+    '<html lang="zh-TW"><head><meta charset="UTF-8">' +
+    '<title>壓克力三角立牌 → Google 文件</title>' +
+    '<style>' +
+    'body{margin:0;font-family:"Microsoft JhengHei",sans-serif;background:#f0f0f0;}' +
+    '.bar{position:fixed;top:0;left:0;right:0;background:#1a73e8;color:white;padding:12px 20px;display:flex;align-items:center;gap:12px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.25);}' +
+    '.bar h2{margin:0;font-size:15px;flex:1;}' +
+    '.cbtn{padding:9px 18px;background:white;color:#1a73e8;border:none;border-radius:6px;font-size:14px;font-weight:900;cursor:pointer;}' +
+    '.gbtn{padding:9px 18px;background:#34a853;color:white;border:none;border-radius:6px;font-size:14px;font-weight:900;cursor:pointer;}' +
+    '.tip{background:#e8f4fd;border-left:4px solid #1a73e8;padding:10px 16px;font-size:13px;line-height:2;margin-bottom:16px;}' +
+    '.content{margin-top:68px;padding:20px;}' +
+    '#cc{background:white;padding:20px;display:inline-block;}' +
+    '.ok{background:#34a853!important;color:white!important;}' +
+    '</style></head><body>' +
+    '<div class="bar">' +
+    '  <h2>📋 壓克力三角立牌（共 ' + labels.length + ' 張）</h2>' +
+    '  <button class="cbtn" id="cb" onclick="doCopy()">① 複製全部內容</button>' +
+    '  <button class="gbtn" onclick="window.open(\'https://docs.google.com/document/create\',\'_blank\');showHint()">② 開啟 Google 文件</button>' +
+    '</div>' +
+    '<div class="content">' +
+    '  <div class="tip">操作步驟：按「① 複製全部內容」→ 按「② 開啟 Google 文件」→ 在文件裡按 <strong>Ctrl+V</strong> 貼上 → 全選後即可更換字體</div>' +
+    '  <div id="cc">' +
+    '    <p style="font-family:sans-serif;font-size:10pt;color:#999;margin:0 0 12px 0;">壓克力三角立牌｜屏東市中正國小教務主任洪啓元製作<br>灰底上格＝朝對方面　白底下格＝朝自己</p>' +
+    tableHtml +
+    '  </div>' +
+    '</div>' +
+    '<div id="ph" style="display:none;position:fixed;bottom:20px;right:20px;background:#34a853;color:white;padding:14px 18px;border-radius:10px;font-size:14px;line-height:1.9;box-shadow:0 4px 16px rgba(0,0,0,0.3);">' +
+    '  📋 現在在 Google 文件裡<br>按 <strong>Ctrl+V</strong>（或 ⌘V）貼上！' +
+    '</div>' +
+    sc +
+    'function doCopy(){' +
+    '  var el=document.getElementById("cc");' +
+    '  var s=window.getSelection();var r=document.createRange();' +
+    '  r.selectNodeContents(el);s.removeAllRanges();s.addRange(r);' +
+    '  document.execCommand("copy");s.removeAllRanges();' +
+    '  var b=document.getElementById("cb");' +
+    '  b.textContent="✅ 已複製！";b.classList.add("ok");' +
+    '  setTimeout(function(){b.textContent="① 複製全部內容";b.classList.remove("ok");},3000);' +
+    '}' +
+    'function showHint(){' +
+    '  var p=document.getElementById("ph");p.style.display="block";' +
+    '  setTimeout(function(){p.style.display="none";},8000);' +
+    '}' +
+    scEnd +
+    '</body></html>';
+
+  const blob = new Blob([previewHtml], {type:'text/html;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
-
-  setStatus('✅ 已在新分頁開啟！依照頁面指示複製貼入 Google 文件。','ok');
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+  setStatus('✅ 已開啟預覽頁面，依指示操作即可貼入 Google 文件。','ok');
 }
 
 
