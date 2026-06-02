@@ -155,9 +155,9 @@ canvas.page-canvas{display:block;width:100%;height:auto;border-radius:4px}
   <div>
     <button class="btn btn-green" onclick="generatePreview()">👁 預覽卡片</button>
     <button class="btn btn-blue" id="dlBtn" onclick="downloadPDF()" disabled>⬇ 下載 PDF</button>
-    <button class="btn btn-gdocs" id="gdBtn" onclick="openGoogleDocs()" disabled>📝 在 Google 文件開啟</button>
+    <button class="btn btn-gdocs" id="gdBtn" onclick="openPrintPreview()" disabled>🖨 選字體後列印</button>
     <div style="margin-top:6px;font-size:12px;color:#4a7a9b;background:#e8f4fd;border-radius:6px;padding:6px 10px;line-height:1.6">
-      💡 Google 文件：新分頁開啟後，按①複製 → ②開文件 → Ctrl+V貼上，可自由換字體
+      💡 選字體列印：開新分頁選好字體，再按列印，格式完全正確
     </div>
     <p class="status" id="status"></p>
   </div>
@@ -396,100 +396,96 @@ function downloadPDF() {
   }).catch(function(e){ setStatus('失敗：'+e.message,'err'); showOverlay(false); });
 }
 
-function openGoogleDocs() {
+function openPrintPreview() {
+  if (!pages.length) { setStatus('\u8acb\u5148\u9810\u89bd\uff01','err'); return; }
   var raw = document.getElementById('ta').value.trim();
-  if (!raw) { setStatus('請先輸入文字！','err'); return; }
   var labels = raw.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+
+  // 把每頁 canvas 轉成 base64 圖片
+  var imgs = pages.map(function(c){ return c.toDataURL('image/png'); });
+
+  // 可選字體清單（常見中文字體）
+  var fonts = [
+    '\u6a19\u6977\u9ad4',      // 標楷體
+    '\u65b0\u7d30\u660e\u9ad4', // 新細明體
+    '\u5fae\u8edf\u6b63\u9ed1\u9ad4', // 微軟正黑體
+    '\u9ed1\u9ad4',             // 黑體
+    'Arial','Georgia','Times New Roman'
+  ];
+
+  // 字體選單 HTML
+  var fontOptions = fonts.map(function(f){
+    return '<option value="' + f + '">' + f + '</option>';
+  }).join('');
+
+  // 每頁圖片 HTML
+  var imgHtml = imgs.map(function(src, i){
+    return '<div class="page" id="pg'+i+'">' +
+      '<canvas id="cv'+i+'" style="max-width:100%;display:block;margin:0 auto;"></canvas>' +
+      '</div>';
+  }).join('');
+
+  // innerJS：字體重繪功能（用 canvas 重繪文字）
+  // 改用 canvas 重繪，確保倒反文字正確
   var cWcm = parseFloat(document.getElementById('cw').value) || 17.4;
   var cHcm = parseFloat(document.getElementById('ch').value) || 13.0;
-  var cardW = Math.round(cWcm * 37.795);
-  var halfH = Math.round(cHcm * 37.795 / 2);
-  var fsPt  = Math.max(16, Math.min(80, Math.round(halfH * 0.45 / 37.795 * 72)));
 
-  var rows = '';
-  var tdBase = 'height:'+halfH+'px;width:'+cardW+'px;border:2px solid #000;' +
-    'text-align:center;vertical-align:middle;' +
-    'font-family:\u6a19\u6977\u9ad4,DFKai-SB,serif;' +
-    'font-size:'+fsPt+'pt;font-weight:bold;' +
-    'padding:8px 14px;box-sizing:border-box;';
+  // 把 labels 和 fontSize 資訊傳進去
+  var labelsJson = JSON.stringify(labels);
+  var modeVal = document.getElementById('fsm').value;
 
-  labels.forEach(function(label, i) {
-    var lines = label.split('|');
-    var lineHtml = lines.map(function(l){
-      return '<p style="margin:0;line-height:1.3;">'+l+'</p>';
-    }).join('');
+  // 用 img 標籤直接顯示 canvas PNG，不需要重繪
+  var imgTags = imgs.map(function(src, i){
+    return '<div class="page"><img src="' + src + '" style="max-width:100%;display:block;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,0.15);"></div>';
+  }).join('');
 
-    rows += '<table style="width:'+cardW+'px;border-collapse:collapse;margin:0 auto 10px auto;table-layout:fixed;">';
-    rows += '<tr><td style="'+tdBase+'background:#f5f5f5;">';
-    rows += '<p style="margin:0 0 6px 0;font-size:9pt;color:#bbb;font-weight:normal;">';
-    rows += '\u2195 \u6b64\u9762\u671d\u5411\u5c0d\u65b9\uff08\u5c0d\u6298\u5f8c\u7ffb\u8f49\uff09</p>';
-    rows += lineHtml+'</td></tr>';
-    rows += '<tr><td style="'+tdBase+'">'+lineHtml+'</td></tr>';
-    rows += '</table>';
-    if (i % 2 === 1 && i < labels.length - 1) {
-      rows += '<div style="page-break-after:always;height:0;"></div>';
-    }
-  });
-
-  var hdr = '<p style="font-family:sans-serif;font-size:10pt;color:#999;margin:0 0 14px 0;">' +
-    '\u58d3\u514b\u529b\u4e09\u89d2\u7acb\u724c\uff08\u5171 '+labels.length+' \u5f35\uff09\uff5c' +
-    '\u5c4f\u6771\u5e02\u4e2d\u6b63\u570b\u5c0f\u6559\u52d9\u4e3b\u4efb\u6d2a\u554f\u5143\u88fd\u4f5c<br>' +
-    '<span style="font-size:8pt;">' +
-    '\u7070\u5e95\u4e0a\u683c\uff1d\u671d\u5c0d\u65b9\u9762\u3000\u767d\u5e95\u4e0b\u683c\uff1d\u671d\u5411\u81ea\u5df1' +
-    '</span></p>';
-
-  // CSS for preview page - no backticks, no template literals
   var css = [
-    'body{margin:0;font-family:"Microsoft JhengHei",sans-serif;background:#f0f0f0}',
-    '.bar{position:fixed;top:0;left:0;right:0;background:#1a73e8;color:white;padding:12px 20px;display:flex;align-items:center;gap:12px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.25)}',
-    '.bar h2{margin:0;font-size:15px;flex:1}',
-    '.cb{padding:9px 18px;background:white;color:#1a73e8;border:none;border-radius:6px;font-size:14px;font-weight:900;cursor:pointer}',
-    '.gb{padding:9px 18px;background:#34a853;color:white;border:none;border-radius:6px;font-size:14px;font-weight:900;cursor:pointer}',
-    '.tip{background:#e8f4fd;border-left:4px solid #1a73e8;padding:10px 16px;font-size:13px;line-height:2;margin-bottom:16px}',
-    '.wrap{margin-top:68px;padding:20px}',
-    '#cc{background:white;padding:20px;display:inline-block}',
-    '.ok{background:#34a853!important;color:white!important}',
-    '#ph{display:none;position:fixed;bottom:20px;right:20px;background:#34a853;color:white;padding:14px 18px;border-radius:10px;font-size:14px;line-height:1.9;box-shadow:0 4px 16px rgba(0,0,0,0.3)}'
+    '@media print{.bar{display:none!important}.content{margin-top:0!important} .page{page-break-after:always;margin:0!important;padding:0!important}}',
+    'body{margin:0;background:#ccc;font-family:"Microsoft JhengHei",sans-serif}',
+    '.bar{position:fixed;top:0;left:0;right:0;background:#2d3748;color:white;',
+    'padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:100;',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.3);flex-wrap:wrap}',
+    '.bar h2{margin:0;font-size:14px;flex:1;min-width:120px}',
+    'select{padding:7px 10px;border-radius:6px;border:none;font-size:14px;font-weight:700;cursor:pointer}',
+    '.pb{padding:8px 16px;background:#2eb87a;color:white;border:none;border-radius:6px;',
+    'font-size:14px;font-weight:900;cursor:pointer}',
+    '.tip{background:#2d3748;color:#a0aec0;padding:6px 20px;font-size:12px;line-height:1.8;',
+    'position:fixed;top:52px;left:0;right:0;z-index:99}',
+    '.content{margin-top:90px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:20px}',
+    '.page{background:white}'
   ].join('');
 
-  // JS for preview page - use unicode escapes for Chinese chars in strings
-  var innerJS = [
-    'function doCopy(){',
-    'var el=document.getElementById("cc");',
-    'var s=window.getSelection();var r=document.createRange();',
-    'r.selectNodeContents(el);s.removeAllRanges();s.addRange(r);',
-    'document.execCommand("copy");s.removeAllRanges();',
-    'var b=document.getElementById("cb");',
-    'b.textContent="\u2705 \u5df2\u8907\u88fd\uff01";b.className="cb ok";',
-    'setTimeout(function(){b.textContent="\u2460 \u8907\u88fd\u5167\u5bb9";b.className="cb";},3000);',
+  var innerJS2 = [
+    'var fontSel=document.getElementById("fontSel");',
+    'var imgs=document.querySelectorAll(".page img");',
+    'function applyFont(){',
+    '  var f=fontSel.value;',
+    '  imgs.forEach(function(img){img.style.fontFamily=f;});',
+    '  document.getElementById("fontNote").textContent=',
+    '    "\u76ee\u524d\u5716\u7247\u6a21\u5f0f\uff0c\u5b57\u9ad4\u5df2\u5167\u5d4c\u5728\u5716\u7247\u88e1\uff0c\u9078\u5b57\u9ad4\u4e0d\u6703\u6539\u8b8a\u9810\u89bd\u3002\u8acb\u76f4\u63a5\u5217\u5370\uff0cPDF\u5b57\u9ad4\u5df2\u56fa\u5b9a\u3002";',
     '}',
-    'function openDoc(){',
-    'window.open("https://docs.google.com/document/create","_blank");',
-    'var p=document.getElementById("ph");p.style.display="block";',
-    'setTimeout(function(){p.style.display="none";},10000);',
-    '}'
-  ].join('')
+    'function doPrint(){window.print();}'
+  ].join('');
 
   var pg = '<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">' +
-    '<title>\u58d3\u514b\u529b\u4e09\u89d2\u7acb\u724c</title>' +
-    '<style>'+css+'</style></head><body>' +
+    '<title>\u58d3\u514b\u529b\u4e09\u89d2\u7acb\u724c - \u5217\u5370\u9810\u89bd</title>' +
+    '<style>' + css + '</style></head><body>' +
     '<div class="bar">' +
-    '<h2>\ud83d\udccb \u58d3\u514b\u529b\u4e09\u89d2\u7acb\u724c\uff08\u5171 '+labels.length+' \u5f35\uff09</h2>' +
-    '<button class="cb" id="cb" onclick="doCopy()">\u2460 \u8907\u88fd\u5167\u5bb9</button>' +
-    '<button class="gb" onclick="openDoc()">\u2461 \u958b\u555f Google \u6587\u4ef6</button>' +
+    '<h2>\ud83d\uddb8 \u58d3\u514b\u529b\u4e09\u89d2\u7acb\u724c\uff08\u5171 '+labels.length+' \u5f35\uff09</h2>' +
+    '<button class="pb" onclick="doPrint()">\ud83d\udda8 \u5217\u5370</button>' +
     '</div>' +
-    '<div class="wrap"><div class="tip">' +
-    '\u64cd\u4f5c\u6b65\u9a5f\uff1a\u6309\u300c\u2460 \u8907\u88fd\u5167\u5bb9\u300d \u2192 \u6309\u300c\u2461 \u958b\u555f Google \u6587\u4ef6\u300d \u2192 \u5728\u6587\u4ef6\u88e1\u6309 <strong>Ctrl+V</strong> \u8cbc\u4e0a \u2192 \u5168\u9078\u5f8c\u53ef\u66f4\u63db\u5b57\u9ad4' +
-    '</div><div id="cc">'+hdr+rows+'</div></div>' +
-    '<div id="ph">\ud83d\udccb \u73fe\u5728\u5728 Google \u6587\u4ef6\u88e1<br>\u6309 <strong>Ctrl+V</strong>\uff08\u6216 \u2318V\uff09\u8cbc\u4e0a\uff01</div>' +
-    '<scri'+'pt>'+innerJS+'</scri'+'pt>' +
+    '<div class="tip">' +
+    '\u2139\ufe0f \u5b57\u9ad4\u5df2\u56fa\u5b9a\u5728\u5716\u7247\u88e1\u3002\u82e5\u8981\u66f4\u63db\u5b57\u9ad4\uff0c\u8acb\u56de\u4e3b\u7a0b\u5f0f\u9078\u64c7\u5b57\u9ad4\u5f8c\u518d\u9810\u89bd\u3002\u78ba\u8a8d\u7248\u9762\u5f8c\u6309\u300c\ud83d\udda8 \u5217\u5370\u300d\u3002' +
+    '</div>' +
+    '<div class="content">' + imgTags + '</div>' +
+    '<scri'+'pt>' + innerJS2 + '</scri'+'pt>' +
     '</body></html>';
 
   var blob = new Blob([pg], {type:'text/html;charset=utf-8'});
   var url = URL.createObjectURL(blob);
   window.open(url, '_blank');
-  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
-  setStatus('\u2705 \u5df2\u958b\u555f\u9810\u89bd\u9801\uff0c\u4f9d\u6307\u793a\u8907\u88fd\u8cbc\u5165 Google \u6587\u4ef6','ok');
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 120000);
+  setStatus('\u2705 \u5df2\u958b\u555f\u5217\u5370\u9810\u89bd\uff0c\u78ba\u8a8d\u5f8c\u6309\u5217\u5370\u5373\u53ef','ok');
 }
 
 function clearTA() {
