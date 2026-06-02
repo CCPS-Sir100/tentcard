@@ -6,7 +6,7 @@
 <title>壓克力三角立牌內頁產生器</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--teal:#2eb87a;--blue:#3a9fd6;--coral:#ff6b6b;--ink:#1a202c;--soft:#4a5568;--border:#bee3f8;--panel:#f8fdff;--radius:10px}
@@ -150,6 +150,15 @@ canvas.page-canvas{display:block;width:100%;height:auto;border-radius:4px}
         <label for="fsm">字體大小</label>
         <select id="fsm"><option value="auto">自動調整</option><option value="xl">特大</option><option value="large">大</option><option value="medium">中</option><option value="small">小</option></select>
       </div>
+      <div style="grid-column:span 2">
+        <label for="ffm">字體樣式</label>
+        <select id="ffm">
+          <option value="sans">黑體（預設）</option>
+          <option value="ming">明體 / 細明體</option>
+          <option value="kai">楷書體</option>
+          <option value="bold-ming">粗明體</option>
+        </select>
+      </div>
     </div>
   </div>
   <div>
@@ -190,7 +199,16 @@ var A4W  = 21.0 * PPcm;
 var A4H  = 29.7 * PPcm;
 
 function FONT(size) {
-  return '900 ' + size + 'px "Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif';
+  var ffm = document.getElementById('ffm');
+  var style = ffm ? ffm.value : 'sans';
+  var families = {
+    'sans':     '"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif',
+    'ming':     '"Noto Serif TC","PMingLiU","\u65b0\u7d30\u660e\u9ad4","Times New Roman",serif',
+    'kai':      '"\u6a19\u6977\u9ad4","DFKai-SB","BiauKai",cursive,serif',
+    'bold-ming':'"Noto Serif TC","MingLiU","\u7d30\u660e\u9ad4",serif'
+  };
+  var fam = families[style] || families['sans'];
+  return '900 ' + size + 'px ' + fam;
 }
 
 var fontOK = false;
@@ -201,6 +219,8 @@ function warmFont() {
       document.fonts.load('900 80px "Noto Sans TC"', '第試場服務台簽到校長處長'),
       document.fonts.load('900 80px "Noto Sans TC"', '收發試題答案卡補發准考證'),
       document.fonts.load('900 80px "Noto Sans TC"', '屏東中正洪啓元政風廠商'),
+      document.fonts.load('900 80px "Noto Serif TC"', '第試場服務台簽到校長處長'),
+      document.fonts.load('900 80px "Noto Serif TC"', '收發試題答案卡補發准考證'),
     ]);
   }).then(function() {
     var passes = [0,1,2];
