@@ -482,17 +482,15 @@ function openPrintPreview() {
   style.textContent =
     '@page{margin:0;size:210mm 297mm}' +
     '@media print{' +
-      'html,body{height:auto!important;overflow:visible!important;margin:0!important}' +
+      'html,body{height:auto!important;overflow:visible!important;margin:0!important;padding:0!important}' +
       'body > *:not(#print-area){display:none!important}' +
       '#print-area{display:block!important;margin:0;padding:0}' +
       '.print-page{' +
-        'width:210mm;height:297mm;' +
-        'page-break-after:always;break-after:page;' +
-        'display:block;overflow:hidden;margin:0;padding:0;' +
-        'position:relative' +
+        'margin:0;padding:0;display:block;' +
+        'page-break-inside:avoid;break-inside:avoid' +
       '}' +
-      '.print-page:last-child{page-break-after:avoid;break-after:avoid}' +
-      '.print-page img{width:210mm;height:297mm;display:block;margin:0;padding:0;position:absolute;top:0;left:0}' +
+      '.print-page:not(:last-child){page-break-after:always;break-after:page}' +
+      '.print-page img{width:210mm;max-height:297mm;display:block;margin:0;padding:0}' +
     '}';
   document.head.appendChild(style);
 
