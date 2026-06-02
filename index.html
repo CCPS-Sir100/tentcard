@@ -85,19 +85,18 @@ canvas.page-canvas{display:block;width:100%;height:auto;border-radius:4px}
 @media(min-width:900px){
   .tab-bar{display:none}
   .workspace{flex-direction:row}
-  /* 左側：①②上下疊，固定寬度 */
   .left-col{flex:0 0 270px;display:flex;flex-direction:column;border-right:2px solid #bee3f8;min-height:0}
-  /* ①卡片文字：flex:1 撐滿上半 */
+  /* 桌機版：不論 active class，全部強制顯示 */
   #panel-text{display:flex!important;flex:1;min-height:0;overflow-y:auto;
     background:var(--panel);border-bottom:2px solid #bee3f8;padding:10px 12px}
-  /* ②批次號碼：固定高度，不壓縮 */
   #panel-batch{display:flex!important;flex:0 0 auto;overflow-y:auto;max-height:45%;
     background:#f8fff8;padding:10px 12px}
-  /* 右側：③④並排 */
   .right-col{flex:1;display:flex;flex-direction:row;min-width:0;min-height:0}
   #panel-settings{display:flex!important;flex:0 0 240px;overflow-y:auto;
     background:#f0fdf8;border-right:2px solid #bee3f8;padding:10px 12px}
   #panel-preview{display:flex!important;flex:1;overflow-y:auto}
+  /* 桌機版完全停用 active/inactive 切換效果 */
+  .tab-panel{display:none}
 }
 </style>
 </head>
@@ -424,7 +423,8 @@ function generatePreview() {
       document.getElementById('gdBtn').disabled = false;
       setStatus('✅ 預覽完成，共 ' + Math.ceil(labels.length/2) + ' 頁', 'ok');
       var tabs = document.querySelectorAll('.tab-btn');
-      if (tabs[3]) switchTab('preview', tabs[3]);
+      // 手機版才自動切到預覽頁籤
+      if (window.innerWidth < 900 && tabs[3]) switchTab('preview', tabs[3]);
     });
   });
 }
