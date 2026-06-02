@@ -220,6 +220,8 @@ canvas.page-canvas{display:block;width:100%;height:auto;border-radius:4px}
 <script>
 
 function switchTab(name, btn) {
+  // 桌機版不切換（四欄全部顯示）
+  if (window.innerWidth >= 900) return;
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
   ['text','batch','settings','preview'].forEach(function(n){
