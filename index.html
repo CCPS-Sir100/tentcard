@@ -454,7 +454,6 @@ function downloadPDF() {
 function openPrintPreview() {
   if (!pages.length) { setStatus('\u8acb\u5148\u9810\u89bd\uff01','err'); return; }
 
-  // 建立隱藏的列印用 div，插入 canvas 圖片，再呼叫 window.print()
   var existing = document.getElementById('print-area');
   if (existing) existing.remove();
 
@@ -462,30 +461,42 @@ function openPrintPreview() {
   area.id = 'print-area';
   area.style.cssText = 'display:none';
 
-  pages.forEach(function(canvas) {
+  // 每頁包在固定 A4 高度的 div 裡，強制分頁
+  pages.forEach(function(canvas, i) {
+    var pg = document.createElement('div');
+    pg.className = 'print-page';
     var img = document.createElement('img');
     img.src = canvas.toDataURL('image/jpeg', 0.95);
-    img.style.cssText = 'width:210mm;display:block;page-break-after:always;';
-    area.appendChild(img);
+    pg.appendChild(img);
+    area.appendChild(pg);
   });
 
   document.body.appendChild(area);
 
-  // 動態加入列印用 CSS（只在列印時顯示 print-area，隱藏其他內容）
   var styleId = 'print-style';
   var oldStyle = document.getElementById(styleId);
   if (oldStyle) oldStyle.remove();
   var style = document.createElement('style');
   style.id = styleId;
-  style.textContent = '@media print{' +
-    'body > *:not(#print-area){display:none!important}' +
-    '#print-area{display:block!important}' +
-    '#print-area img{width:100%;page-break-after:always;}' +
-    '@page{margin:0;size:A4;}' +
-  '}';
+  style.textContent =
+    '@page{margin:0;size:A4 portrait}' +
+    '@media print{' +
+      'html,body{height:auto!important;overflow:visible!important}' +
+      'body > *:not(#print-area){display:none!important}' +
+      '#print-area{display:block!important}' +
+      '.print-page{' +
+        'width:210mm;height:297mm;' +
+        'page-break-before:always;page-break-after:always;' +
+        'break-before:page;break-after:page;' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'overflow:hidden' +
+      '}' +
+      '.print-page:first-child{page-break-before:avoid;break-before:avoid}' +
+      '.print-page img{width:210mm;height:297mm;display:block}' +
+    '}';
   document.head.appendChild(style);
 
-  setStatus('\u2705 \u5373\u5c07\u958b\u555f\u5217\u5370\u8996\u7a97\uff0c\u53ef\u9078\u64c7\u5370\u8868\u6a5f\u6216\u5b58\u6210 PDF','ok');
+  setStatus('\u2705 \u5373\u5c07\u958b\u555f\u5217\u5370\u8996\u7a97','ok');
   setTimeout(function(){ window.print(); }, 300);
 }
 
